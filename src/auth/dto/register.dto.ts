@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength, Matches, Length } from 'class-validator';
 import { Role } from 'generated/prisma';
 
 export class CreateAuthDto {
@@ -15,4 +15,19 @@ export class CreateAuthDto {
   @IsString()
   @IsEnum(Role)
   role: Role;
+
+  @Length(8, 8)
+  @IsNotEmpty()
+  @Matches(/^[0-9]+$/, {
+    message: 'DNI must be a number with 8 digits',
+  })
+  dni: string;
+
+  @IsNotEmpty()
+  @IsString()
+  first_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  last_name: string;
 }
