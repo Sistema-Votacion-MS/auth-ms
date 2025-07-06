@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, HttpStatus } from '@nestjs/common';
 import { PrismaClient } from 'generated/prisma';
 import { CreateAuthDto } from './dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -82,8 +82,9 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
       this.logger.error('Error in register method:', error);
       throw new RpcException({
-        status: 400,
-        message: 'Registration failed. Please try again.',
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Registration failed. Please check if the email is already in use and verify all required fields are provided.',
+        error: 'Registration Failed'
       });
     }
   }
@@ -146,8 +147,9 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
       this.logger.error('Error in login method:', error);
       throw new RpcException({
-        status: 400,
-        message: 'Login failed. Please try again.',
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Login failed due to a server error. Please try again later.',
+        error: 'Authentication Error'
       });
     }
   }
