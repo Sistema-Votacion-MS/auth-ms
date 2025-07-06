@@ -31,7 +31,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
   async register(createAuthDto: CreateAuthDto) {
     this.logger.log(`[register] Starting registration process for email: ${createAuthDto.email}`);
-    
+
     try {
       // 1. Crear el registro de autenticación
       this.logger.debug(`[register] Creating auth record with role: ${createAuthDto.role}`);
@@ -61,7 +61,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         this.logger.log(`[register] User profile created successfully in users-ms for email: ${newAuth.email}`);
       } catch (userError) {
         this.logger.error(`[register] Failed to create user in users-ms, rolling back auth creation`, userError);
-        
+
         this.logger.debug(`[register] Deleting auth record with ID: ${newAuth.id}`);
         await this.auth_users.delete({ where: { id: newAuth.id } });
         this.logger.log(`[register] Auth record rollback completed`);
@@ -101,7 +101,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
   async login(loginDto: LoginDto) {
     this.logger.log(`[login] Starting login process for email: ${loginDto.email}`);
-    
+
     try {
       const { email, password } = loginDto;
 
