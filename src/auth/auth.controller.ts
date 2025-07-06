@@ -8,8 +8,9 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
-  @MessagePattern({ cmd: 'auth_register' })
+  @MessagePattern({ cmd: 'auth_registe' })
   register(@Payload() registerDto: CreateAuthDto) {
+    console.log('Registering user:', registerDto);
     return this.authService.register(registerDto);
   }
 

@@ -36,7 +36,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         data: {
           email: createAuthDto.email,
           passwordHash: bcrypt.hashSync(createAuthDto.password, 10),
-          role: createAuthDto.role,
+          role: createAuthDto.role as any, // Cast to any or explicitly map to $Enums.Role if possible
         }
       });
 

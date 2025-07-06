@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength, Matches, Length } from 'class-validator';
-import { Role } from 'generated/prisma';
+import { RoleEnum } from './role.dto';
 
 export class CreateAuthDto {
   @IsEmail()
@@ -13,8 +13,8 @@ export class CreateAuthDto {
 
   @IsNotEmpty()
   @IsString()
-  @IsEnum(Role)
-  role: Role;
+  @IsEnum(RoleEnum)
+  role: RoleEnum;
 
   @Length(8, 8)
   @IsNotEmpty()
