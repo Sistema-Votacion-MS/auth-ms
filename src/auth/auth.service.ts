@@ -30,8 +30,11 @@ export class AuthService extends PrismaClient implements OnModuleInit {
   }
 
   async register(createAuthDto: CreateAuthDto) {
+    this.logger.log(`[register] Starting registration process for email: ${createAuthDto.email}`);
+    
     try {
       // 1. Crear el registro de autenticación
+      this.logger.debug(`[register] Creating auth record with role: ${createAuthDto.role}`);
       const newAuth = await this.auth_users.create({
         data: {
           email: createAuthDto.email,
@@ -39,6 +42,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
           role: createAuthDto.role as any, // Cast to any or explicitly map to $Enums.Role if possible
         }
       });
+      this.logger.log(`[register] Auth record created successfully with ID: ${newAuth.id}`);
 
       // 2. Crear el usuario en users-ms
       try {
@@ -49,24 +53,30 @@ export class AuthService extends PrismaClient implements OnModuleInit {
           last_name: createAuthDto.last_name,
         };
 
+        this.logger.log(`[register] Sending user profile creation request to users-ms`);
         await firstValueFrom(
           this.userClient.send({ cmd: 'user_create' }, userPayload)
         );
 
-        this.logger.log(`User created in users-ms for email: ${newAuth.email}`);
+        this.logger.log(`[register] User profile created successfully in users-ms for email: ${newAuth.email}`);
       } catch (userError) {
+        this.logger.error(`[register] Failed to create user in users-ms, rolling back auth creation`, userError);
+        
+        this.logger.debug(`[register] Deleting auth record with ID: ${newAuth.id}`);
         await this.auth_users.delete({ where: { id: newAuth.id } });
+        this.logger.log(`[register] Auth record rollback completed`);
 
-        this.logger.error('Failed to create user in users-ms, rolling back auth creation', userError);
         throw new RpcException({
-          status: 500,
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Failed to create user profile',
+          error: 'User Profile Creation Failed'
         });
       }
 
       // 3. Retornar respuesta exitosa
       const { passwordHash: __, ...rest } = newAuth;
 
+      this.logger.log(`[register] Registration completed successfully for user: ${newAuth.id}`);
       return {
         user: rest,
         token: this.signJWT({
@@ -80,7 +90,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         throw error;
       }
 
-      this.logger.error('Error in register method:', error);
+      this.logger.error(`[register] Registration failed for email ${createAuthDto.email}:`, error);
       throw new RpcException({
         status: HttpStatus.BAD_REQUEST,
         message: 'Registration failed. Please check if the email is already in use and verify all required fields are provided.',
@@ -90,38 +100,50 @@ export class AuthService extends PrismaClient implements OnModuleInit {
   }
 
   async login(loginDto: LoginDto) {
+    this.logger.log(`[login] Starting login process for email: ${loginDto.email}`);
+    
     try {
       const { email, password } = loginDto;
 
       // 1. Verificar credenciales en auth-ms
+      this.logger.debug(`[login] Searching for user with email: ${email}`);
       const user = await this.auth_users.findUnique({
         where: { email },
       });
 
       if (!user) {
+        this.logger.warn(`[login] Login attempt failed - User not found for email: ${email}`);
         throw new RpcException({
-          status: 401,
+          status: HttpStatus.UNAUTHORIZED,
           message: 'Invalid credentials',
+          error: 'Authentication Failed'
         });
       }
 
+      this.logger.debug(`[login] User found, verifying password for user ID: ${user.id}`);
       const isPasswordValid = bcrypt.compareSync(password, user.passwordHash);
 
       if (!isPasswordValid) {
+        this.logger.warn(`[login] Login attempt failed - Invalid password for email: ${email}`);
         throw new RpcException({
-          status: 401,
+          status: HttpStatus.UNAUTHORIZED,
           message: 'Invalid credentials',
+          error: 'Authentication Failed'
         });
       }
+
+      this.logger.log(`[login] Credentials validated successfully for user: ${user.id}`);
 
       // 2. Obtener datos adicionales del usuario desde users-ms
       let userData = null;
       try {
+        this.logger.debug(`[login] Fetching additional user data from users-ms for user: ${user.id}`);
         userData = await firstValueFrom(
           this.userClient.send({ cmd: 'user_find_one' }, { id: user.id })
         );
+        this.logger.log(`[login] Additional user data retrieved successfully from users-ms`);
       } catch (userError) {
-        this.logger.warn('Could not fetch user data from users-ms, using auth data only');
+        this.logger.warn(`[login] Could not fetch user data from users-ms for user ${user.id}, using auth data only`, userError);
       }
 
       // 3. Preparar respuesta
@@ -129,9 +151,11 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
       let userInfo = authData;
       if (userData && typeof userData === 'object') {
+        this.logger.debug(`[login] Merging auth and user data for comprehensive response`);
         userInfo = Object.assign({}, authData, userData);
       }
 
+      this.logger.log(`[login] Login completed successfully for user: ${user.id}`);
       return {
         user: userInfo,
         token: this.signJWT({
@@ -145,7 +169,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         throw error;
       }
 
-      this.logger.error('Error in login method:', error);
+      this.logger.error(`[login] Login failed for email ${loginDto.email}:`, error);
       throw new RpcException({
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Login failed due to a server error. Please try again later.',
