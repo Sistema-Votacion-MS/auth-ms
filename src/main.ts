@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { envs } from './config/envs';
 import { ValidationPipe } from '@nestjs/common';
+import { RpcExceptionFilter } from './common/exceptions/rpc-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -21,6 +22,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  app.useGlobalFilters(new RpcExceptionFilter());
 
   console.log('AuthMS- Testing log');
 
